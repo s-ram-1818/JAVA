@@ -1,27 +1,26 @@
-# ResponseEntity in Spring Boot
+# ResponseEntity in Spring Boot - Complete Notes
 
 ## What is ResponseEntity?
 
-`ResponseEntity<T>` is a Spring class used to represent the **entire HTTP response**.
+`ResponseEntity<T>` is a Spring Framework class that represents the **entire HTTP response**.
 
-It allows you to control:
+It provides control over:
 
 1. Response Body
 2. HTTP Status Code
 3. HTTP Headers
 
-Unlike returning a plain object, `ResponseEntity` gives full control over the response sent to the client.
+Package:
+
+```java
+import org.springframework.http.ResponseEntity;
+```
 
 ---
 
 # Why Use ResponseEntity?
 
-Without `ResponseEntity`, Spring automatically returns:
-
-* Status Code: 200 OK
-* Response Body: Returned Object
-
-Example:
+Without ResponseEntity:
 
 ```java
 @GetMapping("/hello")
@@ -40,54 +39,240 @@ Response:
 "Hello World"
 ```
 
-You cannot easily customize the status code.
+You cannot easily control:
+
+* Status Code
+* Headers
+
+With ResponseEntity:
+
+```java
+@GetMapping("/hello")
+public ResponseEntity<String> hello() {
+    return ResponseEntity.ok("Hello World");
+}
+```
+
+Now you can control body, headers, and status.
 
 ---
 
-# ResponseEntity Syntax
+# HTTP Response Structure
+
+Every HTTP Response contains:
+
+```text
+Status Line
+Headers
+Body
+```
+
+Example:
+
+```http
+HTTP/1.1 200 OK
+
+Content-Type: application/json
+
+{
+   "name":"Laptop"
+}
+```
+
+ResponseEntity controls all of them.
+
+---
+
+# Syntax
 
 ```java
 ResponseEntity<T>
 ```
 
-Where:
-
-* T = Type of Response Body
+Where `T` is the body type.
 
 Examples:
 
 ```java
 ResponseEntity<String>
+
 ResponseEntity<Product>
+
 ResponseEntity<List<Product>>
+
+ResponseEntity<Map<String,Object>>
+
+ResponseEntity<Void>
+
+ResponseEntity<?>
+
+ResponseEntity<Object>
+```
+
+---
+
+# Generic Types
+
+## String Response
+
+```java
+ResponseEntity<String>
+```
+
+```java
+return ResponseEntity.ok("Success");
+```
+
+---
+
+## Object Response
+
+```java
+ResponseEntity<Product>
+```
+
+```java
+return ResponseEntity.ok(product);
+```
+
+---
+
+## List Response
+
+```java
+ResponseEntity<List<Product>>
+```
+
+```java
+return ResponseEntity.ok(products);
+```
+
+---
+
+## Map Response
+
+```java
+ResponseEntity<Map<String,Object>>
+```
+
+```java
+Map<String,Object> response = new HashMap<>();
+
+response.put("success",true);
+response.put("message","Added");
+
+return ResponseEntity.ok(response);
+```
+
+---
+
+## No Body
+
+```java
 ResponseEntity<Void>
 ```
 
+```java
+return ResponseEntity.noContent().build();
+```
+
 ---
 
-# Basic Example
+# ResponseEntity<?> (Unknown Response Type)
+
+Used when success and error responses are different.
+
+Example:
 
 ```java
-@GetMapping("/hello")
-public ResponseEntity<String> hello() {
+@GetMapping("/product/{id}")
+public ResponseEntity<?> getProduct(
+        @PathVariable Integer id) {
 
-    return ResponseEntity.ok("Hello World");
+    Product product =
+            productRepo.findById(id)
+                       .orElse(null);
+
+    if(product == null) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body("Product Not Found");
+    }
+
+    return ResponseEntity.ok(product);
 }
 ```
 
-Response:
+Possible Responses:
 
-```http
-200 OK
+```java
+Product
+String
+List<Product>
+Map<String,Object>
 ```
 
-```json
-"Hello World"
+The wildcard `?` means:
+
+```text
+Any Type
 ```
 
 ---
 
-# ResponseEntity Methods
+# ResponseEntity<Object>
+
+```java
+@GetMapping("/test")
+public ResponseEntity<Object> test() {
+
+    if(true)
+        return ResponseEntity.ok(new Product());
+
+    return ResponseEntity.badRequest()
+                         .body("Error");
+}
+```
+
+Useful when multiple object types can be returned.
+
+---
+
+# Difference Between ? and Object
+
+### ResponseEntity<?>
+
+```java
+ResponseEntity<?>
+```
+
+Means:
+
+```text
+Unknown Type
+```
+
+Preferred for mixed responses.
+
+---
+
+### ResponseEntity<Object>
+
+```java
+ResponseEntity<Object>
+```
+
+Means:
+
+```text
+Body is Object
+```
+
+Also works but less expressive.
+
+---
+
+# Common Methods
 
 ## 1. ok()
 
@@ -97,8 +282,6 @@ Returns:
 200 OK
 ```
 
-Example:
-
 ```java
 return ResponseEntity.ok(product);
 ```
@@ -106,22 +289,21 @@ return ResponseEntity.ok(product);
 Equivalent:
 
 ```java
-return ResponseEntity.status(HttpStatus.OK)
-                     .body(product);
+return ResponseEntity
+       .status(HttpStatus.OK)
+       .body(product);
 ```
 
 ---
 
 ## 2. status()
 
-Used for custom status codes.
-
-Example:
+Used for custom status.
 
 ```java
 return ResponseEntity
        .status(HttpStatus.CREATED)
-       .body("Product Added");
+       .body(product);
 ```
 
 Response:
@@ -132,15 +314,51 @@ Response:
 
 ---
 
-## 3. badRequest()
+## 3. created()
+
+Used after resource creation.
+
+```java
+URI location =
+        URI.create("/products/1");
+
+return ResponseEntity
+        .created(location)
+        .body(product);
+```
+
+Response:
+
+```http
+201 Created
+Location: /products/1
+```
+
+---
+
+## 4. accepted()
+
+Returns:
+
+```http
+202 Accepted
+```
+
+```java
+return ResponseEntity
+       .accepted()
+       .body("Processing");
+```
+
+---
+
+## 5. badRequest()
 
 Returns:
 
 ```http
 400 Bad Request
 ```
-
-Example:
 
 ```java
 return ResponseEntity
@@ -150,15 +368,13 @@ return ResponseEntity
 
 ---
 
-## 4. notFound()
+## 6. notFound()
 
 Returns:
 
 ```http
 404 Not Found
 ```
-
-Example:
 
 ```java
 return ResponseEntity
@@ -168,15 +384,13 @@ return ResponseEntity
 
 ---
 
-## 5. noContent()
+## 7. noContent()
 
 Returns:
 
 ```http
 204 No Content
 ```
-
-Example:
 
 ```java
 return ResponseEntity
@@ -186,7 +400,7 @@ return ResponseEntity
 
 ---
 
-## 6. internalServerError()
+## 8. internalServerError()
 
 Returns:
 
@@ -194,40 +408,31 @@ Returns:
 500 Internal Server Error
 ```
 
-Example:
-
 ```java
 return ResponseEntity
        .internalServerError()
-       .body("Something went wrong");
+       .body("Server Error");
 ```
 
 ---
 
 # CRUD Examples
 
-## GET All Products
+## GET All
 
 ```java
 @GetMapping("/products")
 public ResponseEntity<List<Product>> getProducts() {
 
-    List<Product> products =
-            productService.getAllProducts();
-
-    return ResponseEntity.ok(products);
+    return ResponseEntity.ok(
+            productService.getAllProducts()
+    );
 }
-```
-
-Response:
-
-```http
-200 OK
 ```
 
 ---
 
-## GET Product By ID
+## GET By ID
 
 ```java
 @GetMapping("/products/{id}")
@@ -238,82 +443,63 @@ public ResponseEntity<Product> getProduct(
             productRepo.findById(id)
                        .orElse(null);
 
-    if(product == null) {
+    if(product == null)
         return ResponseEntity.notFound().build();
-    }
 
     return ResponseEntity.ok(product);
 }
 ```
 
-Possible Responses:
-
-```http
-200 OK
-```
-
-or
-
-```http
-404 Not Found
-```
-
 ---
 
-## POST Product
+## POST
 
 ```java
 @PostMapping("/products")
-public ResponseEntity<String> addProduct(
+public ResponseEntity<Product> addProduct(
         @RequestBody Product product) {
 
-    productRepo.save(product);
+    Product saved =
+            productRepo.save(product);
 
     return ResponseEntity
             .status(HttpStatus.CREATED)
-            .body("Product Added Successfully");
+            .body(saved);
 }
-```
-
-Response:
-
-```http
-201 Created
 ```
 
 ---
 
-## UPDATE Product
+## PUT
 
 ```java
 @PutMapping("/products/{id}")
-public ResponseEntity<String> updateProduct(
+public ResponseEntity<Product> updateProduct(
         @PathVariable Integer id,
         @RequestBody Product product) {
 
-    if(!productRepo.existsById(id)) {
+    if(!productRepo.existsById(id))
         return ResponseEntity.notFound().build();
-    }
 
     product.setId(id);
-    productRepo.save(product);
 
-    return ResponseEntity.ok("Updated Successfully");
+    return ResponseEntity.ok(
+            productRepo.save(product)
+    );
 }
 ```
 
 ---
 
-## DELETE Product
+## DELETE
 
 ```java
 @DeleteMapping("/products/{id}")
 public ResponseEntity<Void> deleteProduct(
         @PathVariable Integer id) {
 
-    if(!productRepo.existsById(id)) {
+    if(!productRepo.existsById(id))
         return ResponseEntity.notFound().build();
-    }
 
     productRepo.deleteById(id);
 
@@ -321,26 +507,19 @@ public ResponseEntity<Void> deleteProduct(
 }
 ```
 
-Response:
-
-```http
-204 No Content
-```
-
 ---
 
-# Returning Custom Headers
-
-Example:
+# Custom Headers
 
 ```java
 @GetMapping("/version")
-public ResponseEntity<String> getVersion() {
+public ResponseEntity<String> version() {
 
     return ResponseEntity
             .ok()
-            .header("App-Version", "1.0")
-            .body("Spring Boot App");
+            .header("App-Version","1.0")
+            .header("Company","ABC")
+            .body("Running");
 }
 ```
 
@@ -350,138 +529,285 @@ Response:
 200 OK
 
 App-Version: 1.0
+Company: ABC
 ```
 
 ---
 
-# Common HTTP Status Codes
+# Builder Pattern
 
-| Status Code | Meaning               |
-| ----------- | --------------------- |
-| 200         | OK                    |
-| 201         | Created               |
-| 204         | No Content            |
-| 400         | Bad Request           |
-| 401         | Unauthorized          |
-| 403         | Forbidden             |
-| 404         | Not Found             |
-| 500         | Internal Server Error |
-
----
-
-# ResponseEntity<Void>
-
-Used when no body is required.
-
-Example:
+ResponseEntity uses Builder Pattern.
 
 ```java
-return ResponseEntity.noContent().build();
+return ResponseEntity
+        .status(HttpStatus.CREATED)
+        .header("Version","1.0")
+        .body(product);
 ```
 
-Type:
+Flow:
 
 ```java
-ResponseEntity<Void>
+ResponseEntity
+      .status(...)
+      .header(...)
+      .body(...)
 ```
 
 ---
 
-# ResponseEntity vs Returning Object Directly
+# HTTP Status Codes
 
-## Direct Return
+## Success
+
+| Code | Meaning    |
+| ---- | ---------- |
+| 200  | OK         |
+| 201  | Created    |
+| 202  | Accepted   |
+| 204  | No Content |
+
+---
+
+## Client Errors
+
+| Code | Meaning            |
+| ---- | ------------------ |
+| 400  | Bad Request        |
+| 401  | Unauthorized       |
+| 403  | Forbidden          |
+| 404  | Not Found          |
+| 405  | Method Not Allowed |
+
+---
+
+## Server Errors
+
+| Code | Meaning               |
+| ---- | --------------------- |
+| 500  | Internal Server Error |
+| 502  | Bad Gateway           |
+| 503  | Service Unavailable   |
+
+---
+
+# ResponseEntity vs @ResponseBody
+
+## @ResponseBody
 
 ```java
-@GetMapping
+@ResponseBody
 public Product getProduct() {
     return product;
 }
 ```
 
-Pros:
+Controls:
 
-* Simple
-
-Cons:
-
-* Cannot control status code
-* Cannot add headers
+* Body Only
 
 ---
 
 ## ResponseEntity
 
 ```java
-@GetMapping
 public ResponseEntity<Product> getProduct() {
     return ResponseEntity.ok(product);
 }
 ```
 
-Pros:
-
-* Control Status Code
-* Control Headers
-* Better Error Handling
-* Production Ready
-
----
-
-# Interview Questions
-
-## What is ResponseEntity?
-
-ResponseEntity is a Spring class that represents the complete HTTP response including body, headers, and status code.
-
----
-
-## Why use ResponseEntity?
-
-To return custom status codes, headers, and responses from REST APIs.
-
----
-
-## Difference Between @ResponseBody and ResponseEntity?
-
-### @ResponseBody
-
-Returns only body.
-
-```java
-@ResponseBody
-public Product getProduct()
-```
-
-### ResponseEntity
-
-Returns:
+Controls:
 
 * Body
 * Status Code
 * Headers
 
+---
+
+# ResponseEntity vs @ResponseStatus
+
+## @ResponseStatus
+
 ```java
-public ResponseEntity<Product> getProduct()
+@ResponseStatus(HttpStatus.CREATED)
+@PostMapping
+public Product addProduct() {
+    return product;
+}
+```
+
+Always returns:
+
+```http
+201 Created
+```
+
+Static response.
+
+---
+
+## ResponseEntity
+
+```java
+if(success)
+    return ResponseEntity.ok(product);
+
+return ResponseEntity.notFound().build();
+```
+
+Dynamic response.
+
+---
+
+# Exception Handling
+
+```java
+@ExceptionHandler(Exception.class)
+public ResponseEntity<String> handleException(
+        Exception ex) {
+
+    return ResponseEntity
+            .internalServerError()
+            .body(ex.getMessage());
+}
 ```
 
 ---
 
-# Best Practice
+# Best Practices
 
-For production REST APIs:
-
-* Use `ResponseEntity`
-* Return proper status codes
-* Handle errors properly
-* Avoid returning plain Strings unless necessary
-
-Example:
+### Use ResponseEntity in REST APIs
 
 ```java
-return ResponseEntity.ok(data);
+ResponseEntity<Product>
+```
 
-return ResponseEntity.notFound().build();
+instead of
 
-return ResponseEntity.status(HttpStatus.CREATED)
-                     .body(data);
+```java
+Product
+```
+
+---
+
+### Return Proper Status Codes
+
+Create:
+
+```http
+201 Created
+```
+
+Delete:
+
+```http
+204 No Content
+```
+
+Not Found:
+
+```http
+404 Not Found
+```
+
+---
+
+### Use Structured Error Responses
+
+```java
+Map<String,Object> error =
+        new HashMap<>();
+
+error.put("error","Invalid Input");
+error.put("status",400);
+
+return ResponseEntity
+        .badRequest()
+        .body(error);
+```
+
+Response:
+
+```json
+{
+  "error":"Invalid Input",
+  "status":400
+}
+```
+
+---
+
+# Quick Revision Sheet
+
+```java
+ResponseEntity.ok(body);
+
+ResponseEntity.status(HttpStatus.CREATED)
+              .body(body);
+
+ResponseEntity.created(uri)
+              .body(body);
+
+ResponseEntity.accepted()
+              .body(body);
+
+ResponseEntity.badRequest()
+              .body(body);
+
+ResponseEntity.notFound()
+              .build();
+
+ResponseEntity.noContent()
+              .build();
+
+ResponseEntity.internalServerError()
+              .body(body);
+```
+
+---
+
+# Interview Answers
+
+### What is ResponseEntity?
+
+ResponseEntity is a Spring Framework class that represents the complete HTTP response including body, status code, and headers.
+
+---
+
+### Why use ResponseEntity?
+
+To gain complete control over REST API responses.
+
+---
+
+### What does ResponseEntity control?
+
+1. Body
+2. Status Code
+3. Headers
+
+---
+
+### When to use ResponseEntity<?>?
+
+When the method can return different response body types.
+
+---
+
+### When to use ResponseEntity<Void>?
+
+When no response body is required.
+
+---
+
+### Formula to Remember
+
+```text
+ResponseEntity
+=
+Body
++
+Status Code
++
+Headers
 ```
